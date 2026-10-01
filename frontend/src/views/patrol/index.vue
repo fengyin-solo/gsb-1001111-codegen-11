@@ -3,7 +3,7 @@
     <header class="page-head">
       <div>
         <h2>日常巡查管理</h2>
-        <p class="page-desc">维护巡查记录，围绕巡查编号、巡查路段、巡查日期、巡查人员做登记、筛选与状态流转。</p>
+        <p class="page-desc">灭灯抢修包会自动生成巡查清单，记录巡查路线、车辆到达顺序和整包校验结论。</p>
       </div>
       <div class="page-actions">
         <button class="btn primary" type="button" @click="openCreate">登记巡查记录</button>
@@ -26,6 +26,35 @@
       <button class="btn" type="submit">查询</button>
       <button class="btn ghost" type="button" @click="resetFilters">重置条件</button>
     </form>
+
+    <section class="check-panel">
+      <h3>灭灯抢修巡查清单</h3>
+      <table class="data-table compact">
+        <thead>
+          <tr>
+            <th>抢修包</th>
+            <th>巡查路段</th>
+            <th>巡查路线</th>
+            <th>车辆到达顺序</th>
+            <th>状态</th>
+            <th>抢修校验结论</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in checklist" :key="String(item.id)">
+            <td>{{ item.package_no }}</td>
+            <td>{{ item.巡查路段 }}</td>
+            <td>{{ item.巡查路线 }}</td>
+            <td>{{ item.车辆到达顺序 }}</td>
+            <td>{{ item.巡查状态 }}</td>
+            <td>{{ item.抢修校验结论 }}</td>
+          </tr>
+          <tr v-if="!checklist.length">
+            <td colspan="6" class="empty-state">暂无灭灯抢修巡查任务</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
 
     <table class="data-table">
       <thead>
@@ -67,15 +96,15 @@ import { onMounted, ref } from 'vue'
 
 import { request } from '@/api/client'
 
-type Row = Record<string, string | number | null>
+type Row = Record<string, any>
 
 const ENDPOINT = '/api/patrol'
 const columns = ["巡查编号", "巡查路段", "巡查日期", "巡查人员", "巡查车辆", "发现问题", "处置措施", "巡查状态"]
 const actions = ["开始巡查", "完成巡查", "复核确认"]
-const statuses = ["待巡查", "巡查中", "已完成", "已复核"]
-const stats = [{"label": "今日巡查", "value": 0}, {"label": "待巡查路段", "value": 0}, {"label": "发现问题", "value": 0}]
+const stats = ref([{"label": "今日巡查", "value": 0}, {"label": "待巡查路段", "value": 0}, {"label": "灭灯巡查包", "value": 0}])
 
 const rows = ref<Row[]>([])
+const checklist = ref<Row[]>([])
 const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
@@ -99,10 +128,11 @@ async function runAction(action: string, row: Row) {
   try {
     const response = await request(`${ENDPOINT}/${row.id}/actions`, {
       method: 'POST',
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ values: { action } }),
     })
-    if (!response.ok) {
-      throw new Error('日常巡查动作未生效，请稍后重试')
+    const payload = await response.json() as Row
+    if (!response.ok || payload.ok === false) {
+      throw new Error(String(payload.message || '日常巡查动作未生效，请稍后重试'))
     }
     await reload()
   } catch (error) {
@@ -110,17 +140,30 @@ async function runAction(action: string, row: Row) {
   }
 }
 
+async function reloadChecklist() {
+  const response = await request(`${ENDPOINT}/lighting-checklist`)
+  if (!response.ok) throw new Error('灭灯巡查清单读取失败')
+  const payload = await response.json() as Row
+  checklist.value = (payload.items as Row[]) ?? []
+}
+
 async function reload() {
   errorMessage.value = ''
   const query = new URLSearchParams(filters.value as Record<string, string>).toString()
   try {
-    const response = await request(`${ENDPOINT}?${query}`)
-    if (!response.ok) {
+    const listResponse = await request(`${ENDPOINT}?${query}`)
+    await reloadChecklist()
+    if (!listResponse.ok) {
       throw new Error('巡查记录列表读取失败')
     }
-    const payload = await response.json()
-    rows.value = payload.items ?? []
-    total.value = payload.total ?? rows.value.length
+    const payload = await listResponse.json() as Row
+    rows.value = (payload.items as Row[]) ?? []
+    total.value = Number(payload.total ?? rows.value.length)
+    stats.value = [
+      { label: '今日巡查', value: total.value },
+      { label: '待巡查路段', value: rows.value.filter((row) => row.status === '待巡查').length },
+      { label: '灭灯巡查包', value: checklist.value.length },
+    ]
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '日常巡查列表读取失败'
   }
@@ -128,3 +171,16 @@ async function reload() {
 
 onMounted(reload)
 </script>
+
+<style scoped>
+.check-panel {
+  margin: 12px 0;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+.check-panel h3 { margin: 0 0 10px; }
+.compact th,
+.compact td { padding: 6px 8px; }
+</style>

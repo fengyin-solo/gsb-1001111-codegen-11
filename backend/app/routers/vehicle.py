@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas import ActionResult, EntryPayload, PageResult
+from app.services.lighting_repair import repair_service
 from app.services.vehicle import VehicleService
 
 router = APIRouter(prefix="/api/vehicle", tags=["养护车辆"])
@@ -28,6 +29,12 @@ def list_entries(
         raise HTTPException(status_code=400, detail="每页最多 200 条，请缩小分页范围")
     items, total = service.list_entries(keyword=keyword, status=status, page=page, size=size)
     return PageResult(items=items, total=total, page=page, size=size)
+
+
+@router.get("/lighting-tasks")
+def lighting_tasks() -> dict[str, Any]:
+    """车辆任务汇总：展示抢修包、巡查路线、到达顺序和校验结论。"""
+    return repair_service.vehicle_task_summary()
 
 
 @router.get("/{entry_id}", response_model=dict)

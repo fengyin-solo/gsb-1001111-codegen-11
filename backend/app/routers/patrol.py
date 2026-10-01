@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas import ActionResult, EntryPayload, PageResult
+from app.services.lighting_repair import repair_service
 from app.services.patrol import PatrolService
 
 router = APIRouter(prefix="/api/patrol", tags=["日常巡查"])
@@ -28,6 +29,12 @@ def list_entries(
         raise HTTPException(status_code=400, detail="每页最多 200 条，请缩小分页范围")
     items, total = service.list_entries(keyword=keyword, status=status, page=page, size=size)
     return PageResult(items=items, total=total, page=page, size=size)
+
+
+@router.get("/lighting-checklist")
+def lighting_checklist() -> dict[str, Any]:
+    """灭灯抢修落到巡查清单：展示路线、车辆顺序和整包校验结论。"""
+    return repair_service.patrol_checklist()
 
 
 @router.get("/{entry_id}", response_model=dict)

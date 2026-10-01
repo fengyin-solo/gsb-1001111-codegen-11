@@ -12,8 +12,8 @@ router = APIRouter(prefix="/api/lighting", tags=["路灯照明"])
 
 service = LightingService()
 
-LIST_FIELDS = ["灯具编号", "灯具类型", "功率", "所属路段", "安装日期", "杆号", "不亮原因", "设施状态"]
-STATUSES = ["正常", "不亮", "闪烁", "已修复"]
+LIST_FIELDS = ["灯具编号", "灯具类型", "功率", "所属路段", "安装日期", "杆号", "回路", "供电区", "道路部位", "不亮原因", "设施状态"]
+STATUSES = ["正常", "不亮", "闪烁", "抢修中", "已修复"]
 
 
 @router.get("", response_model=PageResult[dict])

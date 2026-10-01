@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any
 
 from app.seed import SEED_ROWS
@@ -26,6 +27,25 @@ class Store:
             if int(row.get("id", 0)) == entry_id:
                 return row
         return None
+
+    def next_id(self, module: str) -> int:
+        return max((int(row.get("id", 0)) for row in self.rows(module)), default=0) + 1
+
+    def snapshot(self, *, exclude: set[str] | None = None) -> dict[str, list[dict[str, Any]]]:
+        """供整包阶段回滚使用，深拷贝避免快照被后续修改污染。"""
+        excluded = exclude or set()
+        return {
+            name: deepcopy(rows)
+            for name, rows in self._tables.items()
+            if name not in excluded
+        }
+
+    def restore(self, snapshot: dict[str, list[dict[str, Any]]]) -> None:
+        for name in list(self._tables):
+            if name not in snapshot:
+                self._tables.pop(name, None)
+        for name, rows in snapshot.items():
+            self._tables[name] = deepcopy(rows)
 
     def overview(self) -> dict[str, object]:
         modules: list[dict[str, object]] = []
