@@ -52,6 +52,9 @@ class LightingService:
             return None, f"路灯设施 {entry_id} 不存在或已归档"
         if action not in ACTION_RULES:
             return None, f"动作「{action}」不属于路灯照明可执行范围"
+        # 故障灯的派发必须走灭灯抢修包，台账侧不允许按单灯派单，避免与抢修包重复
+        if action == "派发修复" and entry.get("抢修包号") and entry.get("派单锁定"):
+            return None, f"该灯已随抢修包 {entry['抢修包号']} 统一派单，不支持单灯重复派发"
         target = ACTION_RULES[action]
         if target not in STATUS_ORDER:
             return None, f"目标状态「{target}」不在允许的状态序列里"

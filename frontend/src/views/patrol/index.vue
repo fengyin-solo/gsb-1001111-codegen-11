@@ -36,7 +36,7 @@
       </thead>
       <tbody>
         <tr v-for="row in rows" :key="String(row.id)">
-          <td v-for="column in columns" :key="column">{{ row[column] ?? '—' }}</td>
+          <td v-for="column in columns" :key="column" :title="routeTip(row)">{{ row[column] ?? '—' }}</td>
           <td class="row-actions">
             <button
               v-for="action in actions"
@@ -67,13 +67,19 @@ import { onMounted, ref } from 'vue'
 
 import { request } from '@/api/client'
 
-type Row = Record<string, string | number | null>
+type Row = Record<string, any>
 
 const ENDPOINT = '/api/patrol'
-const columns = ["巡查编号", "巡查路段", "巡查日期", "巡查人员", "巡查车辆", "发现问题", "处置措施", "巡查状态"]
+const columns = ["巡查编号", "巡查路段", "巡查日期", "巡查人员", "巡查车辆", "发现问题", "处置措施", "巡查状态", "来源", "抢修包号"]
 const actions = ["开始巡查", "完成巡查", "复核确认"]
 const statuses = ["待巡查", "巡查中", "已完成", "已复核"]
 const stats = [{"label": "今日巡查", "value": 0}, {"label": "待巡查路段", "value": 0}, {"label": "发现问题", "value": 0}]
+
+function routeTip(row: Row): string {
+  const route = row.巡查路线 as Array<Record<string, string | number>> | undefined
+  if (!route) return ''
+  return route.map((stop) => `${stop.顺序}. ${stop.杆号} ${stop.灯具编号}`).join('  →  ')
+}
 
 const rows = ref<Row[]>([])
 const total = ref(0)
@@ -99,7 +105,7 @@ async function runAction(action: string, row: Row) {
   try {
     const response = await request(`${ENDPOINT}/${row.id}/actions`, {
       method: 'POST',
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ values: { action } }),
     })
     if (!response.ok) {
       throw new Error('日常巡查动作未生效，请稍后重试')

@@ -11,6 +11,7 @@ const TrafficFacility = () => import('@/views/traffic_facility/index.vue')
 const Drainage = () => import('@/views/drainage/index.vue')
 const Green = () => import('@/views/green/index.vue')
 const Lighting = () => import('@/views/lighting/index.vue')
+const LightingRepair = () => import('@/views/lighting_repair/index.vue')
 const Winter = () => import('@/views/winter/index.vue')
 const Flood = () => import('@/views/flood/index.vue')
 const Slope = () => import('@/views/slope/index.vue')
@@ -34,6 +35,7 @@ const router = createRouter({
     { path: '/drainage', name: 'drainage', component: Drainage },
     { path: '/green', name: 'green', component: Green },
     { path: '/lighting', name: 'lighting', component: Lighting },
+    { path: '/lighting_repair', name: 'lighting_repair', component: LightingRepair },
     { path: '/winter', name: 'winter', component: Winter },
     { path: '/flood', name: 'flood', component: Flood },
     { path: '/slope', name: 'slope', component: Slope },

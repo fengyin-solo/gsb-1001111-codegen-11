@@ -59,6 +59,44 @@
       <span>共 {{ total }} 条养护车辆记录</span>
       <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
     </footer>
+
+    <section class="task-block">
+      <header class="task-head">
+        <h3>灭灯抢修任务汇总</h3>
+        <span class="task-tip">按抢修包维度生成，一个包一辆车一条，不按单灯重复派单</span>
+      </header>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>抢修包号</th>
+            <th>车牌号</th>
+            <th>驾驶员</th>
+            <th>通行影响</th>
+            <th>故障灯数</th>
+            <th>车辆到达顺序</th>
+            <th>派单时间</th>
+            <th>任务状态</th>
+            <th>复电时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="task in tasks" :key="String(task.id)">
+            <td>{{ task.抢修包号 }}</td>
+            <td>{{ task.车牌号 }}</td>
+            <td>{{ task.驾驶员 ?? '—' }}</td>
+            <td>{{ task.影响级别 }}</td>
+            <td>{{ task.灯具数量 }}</td>
+            <td>{{ formatArrival(task.到达顺序) }}</td>
+            <td>{{ task.派单时间 }}</td>
+            <td>{{ task.任务状态 }}</td>
+            <td>{{ task.复电时间 ?? '—' }}</td>
+          </tr>
+          <tr v-if="!tasks.length">
+            <td colspan="9" class="empty-state">暂无灭灯抢修派车任务</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
   </section>
 </template>
 
@@ -68,11 +106,30 @@ import { onMounted, ref } from 'vue'
 import { request } from '@/api/client'
 
 type Row = Record<string, string | number | null>
+type Task = Record<string, any>
 
 const ENDPOINT = '/api/vehicle'
 const columns = ["车辆编号", "车辆类型", "车牌号", "所属单位", "年检日期", "驾驶员", "当前里程", "车辆状态"]
 const actions = ["派车出车", "收车归库", "送修车辆"]
 const statuses = ["在库", "出车作业", "维修", "报废"]
+
+const tasks = ref<Task[]>([])
+
+function formatArrival(order: Task['到达顺序']): string {
+  if (!Array.isArray(order)) return '—'
+  return order.map((stop) => `${stop.顺序}.${stop.级别}(${stop.起始杆号})`).join(' → ')
+}
+
+async function loadTasks() {
+  try {
+    const response = await request('/api/lighting-repair/vehicle-tasks')
+    if (!response.ok) return
+    const payload = await response.json()
+    tasks.value = payload.items ?? []
+  } catch {
+    /* 汇总区加载失败不影响车辆台账 */
+  }
+}
 const stats = [{"label": "在库车辆", "value": 0}, {"label": "出车车辆", "value": 0}, {"label": "维修车辆", "value": 0}]
 
 const rows = ref<Row[]>([])
@@ -99,12 +156,13 @@ async function runAction(action: string, row: Row) {
   try {
     const response = await request(`${ENDPOINT}/${row.id}/actions`, {
       method: 'POST',
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ values: { action } }),
     })
     if (!response.ok) {
       throw new Error('养护车辆动作未生效，请稍后重试')
     }
     await reload()
+    await loadTasks()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '养护车辆操作失败'
   }
@@ -126,5 +184,15 @@ async function reload() {
   }
 }
 
-onMounted(reload)
+onMounted(() => {
+  void reload()
+  void loadTasks()
+})
 </script>
+
+<style scoped>
+.task-block { margin-top: 22px; }
+.task-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.task-head h3 { font-size: 15px; margin: 0; }
+.task-tip { font-size: 12px; color: var(--muted); }
+</style>

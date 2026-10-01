@@ -3,7 +3,7 @@
     <header class="page-head">
       <div>
         <h2>路灯照明管理</h2>
-        <p class="page-desc">维护路灯设施，围绕灯具编号、灯具类型、功率、所属路段做登记、筛选与状态流转。</p>
+        <p class="page-desc">维护路灯设施台账；故障灯由「灭灯抢修」按相邻杆号/回路/供电区统一聚合派单，抢修包号与复电结论回写本页。</p>
       </div>
       <div class="page-actions">
         <button class="btn primary" type="button" @click="openCreate">登记路灯设施</button>
@@ -70,7 +70,7 @@ import { request } from '@/api/client'
 type Row = Record<string, string | number | null>
 
 const ENDPOINT = '/api/lighting'
-const columns = ["灯具编号", "灯具类型", "功率", "所属路段", "安装日期", "杆号", "不亮原因", "设施状态"]
+const columns = ["灯具编号", "灯具类型", "功率", "所属路段", "杆号", "回路", "供电区", "道路位置", "不亮原因", "设施状态", "抢修包号"]
 const actions = ["登记故障", "派发修复", "确认修复"]
 const statuses = ["正常", "不亮", "闪烁", "已修复"]
 const stats = [{"label": "正常灯具", "value": 0}, {"label": "不亮灯具", "value": 0}, {"label": "修复中灯具", "value": 0}]
@@ -99,7 +99,7 @@ async function runAction(action: string, row: Row) {
   try {
     const response = await request(`${ENDPOINT}/${row.id}/actions`, {
       method: 'POST',
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ values: { action } }),
     })
     if (!response.ok) {
       throw new Error('路灯照明动作未生效，请稍后重试')
